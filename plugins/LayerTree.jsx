@@ -638,7 +638,10 @@ class LayerTree extends React.Component {
             type: "FeatureCollection",
             features: layer.features.map(feature => ({...feature, geometry: VectorLayerUtils.reprojectGeometry(feature.geometry, feature.crs || this.props.map.projection, 'EPSG:4326')}))
         }, null, ' ');
-        FileSaver.saveAs(new Blob([data], {type: "text/plain;charset=utf-8"}), layer.title + ".json");
+
+        const togpx = require('togpx');
+
+        FileSaver.saveAs(new Blob([togpx(JSON.parse(data))], {type: "text/plain;charset=utf-8"}), layer.title + ".gpx");
     }
 }
 

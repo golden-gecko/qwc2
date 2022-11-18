@@ -61,7 +61,8 @@
         "reselect": "4.0.0",
         "sortablejs": "1.14.0",
         "stream-browserify": "^3.0.0",
-        "timers-browserify": "^2.0.12"
+        "timers-browserify": "^2.0.12",
+        "togpx": "^0.5.4"
     },
     "devDependencies": {
         "@babel/core": "7.15.8",
