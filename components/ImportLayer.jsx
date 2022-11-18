@@ -44,7 +44,7 @@ class ImportLayer extends React.Component {
         const urlPresets = ConfigUtils.getConfigProp("importLayerUrlPresets", this.props.theme) || [];
         if (this.state.type === "Local") {
             return (
-                <FileSelector accept=".kml,.json,.geojson" file={this.state.file} onFileSelected={this.onFileSelected} />
+                <FileSelector accept=".gpx,.kml,.json,.geojson" file={this.state.file} onFileSelected={this.onFileSelected} />
             );
         } else {
             return (
@@ -216,7 +216,18 @@ class ImportLayer extends React.Component {
         const file = this.state.file;
         const reader = new FileReader();
         reader.onload = (ev) => {
-            if (file.name.toLowerCase().endsWith(".kml")) {
+            if (file.name.toLowerCase().endsWith(".gpx")) {
+                try {
+                    const tj = require('togeojson');
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(ev.target.result, "application/xml");
+                    const data = tj.gpx(doc);
+
+                    this.addGeoJSONLayer(file.name, data);
+                } catch (e) {
+                    /* Pass */
+                }
+            } else if (file.name.toLowerCase().endsWith(".kml")) {
                 this.addKMLLayer(file.name, ev.target.result);
             } else if (file.name.toLowerCase().endsWith(".geojson") || file.name.toLowerCase().endsWith(".json")) {
                 let data = {};
