@@ -788,55 +788,51 @@ const LayerUtils = {
         });
         return result;
     },
-    getAttribution(layer, map, showThemeCopyrightOnly = false, transformedbboxes = null) {
-        const copyrights = {};
-        if (!transformedbboxes) {
-            transformedbboxes = {};
+    getAttribution(layer, map, showThemeAttributionOnly = false, transformedMapBBoxes = {}) {
+        if (layer.visibility === false || (showThemeAttributionOnly && layer.role !== LayerRole.THEME)) {
+            return {};
         }
-        if (layer.sublayers && layer.visibility !== false) {
-            Object.assign(
-                copyrights,
-                layer.sublayers.reduce((res, sublayer) => ({...res, ...LayerUtils.getAttribution(sublayer, map, showThemeCopyrightOnly, transformedbboxes)}), {})
-            );
+
+        const mapScale = MapUtils.computeForZoom(map.scales, map.zoom);
+        if (!LayerUtils.layerScaleInRange(layer, mapScale)) {
+            return {};
         }
-        if (!layer.attribution || !layer.attribution.Title || !layer.visibility) {
-            return copyrights;
-        }
-        const key = layer.attribution.OnlineResource || layer.attribution.Title;
-        if (showThemeCopyrightOnly) {
-            if (layer.role === LayerRole.THEME) {
-                copyrights[key] = {
-                    title: layer.attribution.OnlineResource ? layer.attribution.Title : null,
-                    layers: [ ...((copyrights[key] || {}).layers || []), layer]
-                };
+
+        if (layer.bbox) {
+            const layerCrs = layer.bbox.crs || map.projection;
+            if (!transformedMapBBoxes[layerCrs]) {
+                transformedMapBBoxes[layerCrs] = CoordinatesUtils.reprojectBbox(map.bbox.bounds, map.projection, layerCrs);
             }
-        } else if (layer.role === LayerRole.BACKGROUND) {
-            const mapScale = MapUtils.computeForZoom(map.scales, map.zoom);
-            if (LayerUtils.layerScaleInRange(layer, mapScale)) {
-                copyrights[key] = {
-                    title: layer.attribution.OnlineResource ? layer.attribution.Title : null,
-                    layers: [ ...((copyrights[key] || {}).layers || []), layer]
-                };
-            }
-        } else {
-            if (!layer.bbox) {
-                return copyrights;
-            }
-            if (!transformedbboxes[layer.bbox.crs]) {
-                transformedbboxes[layer.bbox.crs] = CoordinatesUtils.reprojectBbox(map.bbox.bounds, map.projection, layer.bbox.crs);
-            }
-            const mapbbox = transformedbboxes[layer.bbox.crs];
+            const mapbbox = transformedMapBBoxes[layerCrs];
             const laybbox = layer.bbox.bounds;
             if (
-                mapbbox[0] < laybbox[2] && mapbbox[2] > laybbox[0] &&
-                mapbbox[1] < laybbox[3] && mapbbox[3] > laybbox[1]
+                mapbbox[0] > laybbox[2] || mapbbox[2] < laybbox[0] ||
+                mapbbox[1] > laybbox[3] || mapbbox[3] < laybbox[1]
             ) {
-                // Extents overlap
-                copyrights[key] = {
-                    title: layer.attribution.OnlineResource ? layer.attribution.Title : null,
-                    layers: [ ...((copyrights[key] || {}).layers || []), layer]
-                };
+                // Extents don't overlap
+                return {};
             }
+        }
+
+        const copyrights = {};
+
+        if (layer.sublayers) {
+            Object.assign(
+                copyrights,
+                layer.sublayers.reduce((res, sublayer) => ({...res, ...LayerUtils.getAttribution(sublayer, map, false, transformedMapBBoxes)}), {})
+            );
+        } else if (layer.type === "group" && layer.items) {
+            Object.assign(
+                copyrights,
+                layer.items.reduce((res, sublayer) => ({...res, ...LayerUtils.getAttribution(sublayer, map, false, transformedMapBBoxes)}), {})
+            );
+        }
+        if (layer.attribution && layer.attribution.Title) {
+            const key = layer.attribution.OnlineResource || layer.attribution.Title;
+            copyrights[key] = {
+                title: layer.attribution.OnlineResource ? layer.attribution.Title : null,
+                layers: [ ...((copyrights[key] || {}).layers || []), layer]
+            };
         }
         return copyrights;
     }
